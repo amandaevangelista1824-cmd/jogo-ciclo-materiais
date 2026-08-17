@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jogo da Memória — Resíduos e Decomposição</title>
+<style>
+*{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#edf8f0;color:#173d31}
+header{background:#176b4d;color:#fff;text-align:center;padding:25px 15px}h1{margin:0;font-size:clamp(1.6rem,4vw,2.5rem)}header p{margin:8px 0 0}
+main{max-width:1040px;margin:0 auto;padding:20px 15px 36px}.box{background:#fff;border-radius:16px;padding:16px 20px;box-shadow:0 5px 18px #18563822}
+.box h2{margin:0 0 7px;font-size:1.18rem}.box p{margin:0;line-height:1.45}
+.stats{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:18px 0}.stat{background:white;border:2px solid #bfe4cb;border-radius:10px;padding:10px 17px;font-weight:bold}
+#board{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}
+.card{height:155px;border:0;padding:0;border-radius:15px;background:transparent;cursor:pointer;font:inherit}
+.card:focus-visible{outline:4px solid #f0ad1a;outline-offset:3px}.card .closed,.card .opened{height:155px;border-radius:15px;box-shadow:0 5px 14px #1c563222;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;text-align:center;font-weight:bold}
+.closed{background:linear-gradient(135deg,#36a96e,#126c49);border:3px solid #80d3a0;color:#fff}.closed .symbol{font-size:3.3rem}.closed small{margin-top:5px;font-size:.75rem}
+.opened{background:#fffdf5;border:3px solid #bfe4cb;line-height:1.25}.opened .icon{font-size:2.8rem;margin-bottom:8px}.opened.time{background:#e5f7ed}.opened.time .icon{font-size:2.5rem}
+.card.matched .opened{background:#fff1b9;border-color:#efbc32}.card.matched{cursor:default}
+#note{display:none;max-width:740px;margin:18px auto 0;background:#fff;border-left:7px solid #ffc83f;border-radius:12px;padding:14px 17px;line-height:1.45;box-shadow:0 5px 14px #1c563218}
+#done{display:none;max-width:600px;margin:18px auto;text-align:center;background:#d8f3e2;border:2px solid #72bf90;border-radius:14px;padding:17px;font-size:1.1rem}
+.actions{text-align:center;margin:21px}.actions button{background:#176b4d;color:#fff;border:0;padding:12px 21px;border-radius:9px;font-size:1rem;font-weight:bold;cursor:pointer}
+footer{text-align:center;font-size:.88rem;color:#537466}
+[hidden]{display:none!important}
+@media(max-width:700px){#board{grid-template-columns:repeat(3,1fr);gap:10px}.card,.card .closed,.card .opened{height:138px}.opened{font-size:.86rem}}
+@media(max-width:430px){#board{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header><h1>🌎 Feira de Ciências: Ciclo dos Materiais</h1><p><b>Pedro Evangelista Silva</b> — 4º Ano</p></header>
+<main>
+ <section class="box"><h2>Jogo da memória: resíduo e tempo de decomposição</h2><p>Clique em <b>duas cartas verdes</b>. Forme um par com o <b>tipo de resíduo</b> e o seu <b>tempo aproximado de decomposição</b>. As cartas só mostram o conteúdo quando você clica nelas.</p></section>
+ <div class="stats"><div class="stat">Pares: <span id="pairs">0</span> de 7</div><div class="stat">Tentativas: <span id="tries">0</span></div></div>
+ <div id="board"></div>
+ <div class="actions"><button id="again">↻ Recomeçar</button></div>
+ <div id="note" aria-live="polite"></div><div id="done"><b>🎉 Parabéns!</b><br>Você encontrou todos os pares de resíduos e tempos de decomposição.</div>
+ <footer>Os tempos são aproximados e podem variar conforme as condições do ambiente.</footer>
+</main>
+<script>
+const dados=[
+ ["Fralda descartável","🍼","Aproximadamente 450 anos","A fralda demora muitos anos para se decompor. Por isso, é importante evitar desperdício e fazer o descarte correto."],
+ ["Garrafa PET e sacolas plásticas","🥤","Aproximadamente 400 a 500 anos","Plásticos ficam muito tempo na natureza. Reduzir, reutilizar e reciclar são atitudes importantes."],
+ ["Borracha e pneu","🛞","600 anos ou mais","Pneus e borrachas devem ser entregues em locais de coleta. Eles não devem ser jogados em terrenos, ruas ou rios."],
+ ["Cascas de frutas e legumes","🍎","Cerca de 2 meses","São materiais orgânicos e podem virar adubo por meio da compostagem."],
+ ["Papelão e embalagens de papel","📦","Aproximadamente 2 a 6 meses","Papéis e papelões limpos e secos podem ser reciclados."],
+ ["Tecidos de algodão (pano)","👕","Aproximadamente 1 a 5 meses","Roupas e panos podem ser doados ou reaproveitados antes de serem descartados."],
+ ["Vidro","🍾","Mais de 4.000 anos","O vidro pode ficar na natureza por milhares de anos, mas pode ser reciclado muitas vezes."]
+];
+let primeira=null, bloqueado=false, achou=0, tentativas=0;
+const board=document.getElementById("board"), pairs=document.getElementById("pairs"), tries=document.getElementById("tries"), note=document.getElementById("note"), done=document.getElementById("done");
+function misturar(lista){return lista.sort(()=>Math.random()-.5)}
+function criarCarta(id,tipo,texto,icone){
+ const card=document.createElement("button"); card.className="card";card.type="button";card.dataset.id=id;card.dataset.tipo=tipo;card.setAttribute("aria-label","Carta fechada. Clique para abrir.");
+ const closed=document.createElement("div");closed.className="closed";closed.innerHTML='<div class="symbol">♻</div><small>CLIQUE PARA VIRAR</small>';
+ const opened=document.createElement("div");opened.className="opened"+(tipo==="tempo"?" time":"");opened.hidden=true;
+ opened.innerHTML=`<div class="icon">${icone}</div><div>${texto}</div>`;
+ card.append(closed,opened);card.addEventListener("click",()=>virar(card));return card;
+}
+function iniciar(){
+ primeira=null;bloqueado=false;achou=0;tentativas=0;pairs.textContent=0;tries.textContent=0;note.hidden=true;note.style.display="none";done.style.display="none";board.innerHTML="";
+ const cartas=[];dados.forEach((d,i)=>{cartas.push([i,"residuo",d[0],d[1]]);cartas.push([i,"tempo",d[2],"⏳"])});
+ misturar(cartas).forEach(c=>board.appendChild(criarCarta(...c)));
+}
+function mostrar(card){card.querySelector(".closed").hidden=true;card.querySelector(".opened").hidden=false}
+function esconder(card){card.querySelector(".closed").hidden=false;card.querySelector(".opened").hidden=true}
+function virar(card){
+ if(bloqueado||card===primeira||card.classList.contains("matched"))return;
+ mostrar(card);
+ if(!primeira){primeira=card;return}
+ tentativas++;tries.textContent=tentativas;
+ const acertou=primeira.dataset.id===card.dataset.id && primeira.dataset.tipo!==card.dataset.tipo;
+ if(acertou){
+   const d=dados[Number(card.dataset.id)];primeira.classList.add("matched");card.classList.add("matched");achou++;pairs.textContent=achou;
+   note.innerHTML=`<b>✅ Par encontrado: ${d[0]}</b><br>${d[3]}`;note.hidden=false;note.style.display="block";primeira=null;
+   if(achou===dados.length)done.style.display="block";
+ }else{
+   bloqueado=true;setTimeout(()=>{esconder(primeira);esconder(card);primeira=null;bloqueado=false},900);
+ }
+}
+document.getElementById("again").addEventListener("click",iniciar);iniciar();
+</script>
+</body></html>
